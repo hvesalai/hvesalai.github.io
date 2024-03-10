@@ -51,8 +51,10 @@
 ;; M-g == M-x goto-line, M-' = next-error
 (global-set-key (kbd "M-g") 'goto-line)
 (global-set-key (kbd "M-'") 'next-error)
-(global-set-key (kbd "C-<next>") 'end-of-buffer)
 (global-set-key (kbd "C-<prior>") 'beginning-of-buffer)
+(global-set-key (kbd "<home>") 'beginning-of-buffer)
+(global-set-key (kbd "C-<next>") 'end-of-buffer)
+(global-set-key (kbd "<end>") 'end-of-buffer)
 
 (add-hook 'scala-mode-hook '(lambda ()
   ;;  (require 'whitespace)
