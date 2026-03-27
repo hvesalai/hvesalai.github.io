@@ -94,13 +94,122 @@
  ;; If there is more than one, they won't work right.
  '(baud-rate 200000)
  '(frame-background-mode 'dark)
+ '(global-auto-revert-mode t)
  '(grep-find-ignored-directories '(".git" "target"))
  '(grep-find-ignored-files '(".#*" "*~" "*.class" "*.jar"))
  '(package-selected-packages
-   '(typescript-mode sbt-mode gh find-file-in-project use-package smartparens scala-mode gist diminish))
+   '(markdown-mode markup scala-ts-mode typescript-mode sbt-mode gh find-file-in-project use-package smartparens gist diminish))
+ '(safe-local-variable-values
+   '((fci-rule-column . 140)
+     (c-comment-only-line-offset 0 . 0)
+     (eval progn
+           (defun my/point-in-defun-declaration-p nil
+             (let
+                 ((bod
+                   (save-excursion
+                     (c-beginning-of-defun)
+                     (point))))
+               (<= bod
+                   (point)
+                   (save-excursion
+                     (goto-char bod)
+                     (re-search-forward "{")
+                     (point)))))
+           (defun my/is-string-concatenation-p nil "Returns true if the previous line is a string concatenation"
+                  (save-excursion
+                    (let
+                        ((start
+                          (point)))
+                      (forward-line -1)
+                      (if
+                          (re-search-forward " \\+$" start t)
+                          t nil))))
+           (defun my/inside-java-lambda-p nil "Returns true if point is the first statement inside of a lambda"
+                  (save-excursion
+                    (c-beginning-of-statement-1)
+                    (let
+                        ((start
+                          (point)))
+                      (forward-line -1)
+                      (if
+                          (search-forward " -> {" start t)
+                          t nil))))
+           (defun my/trailing-paren-p nil "Returns true if point is a training paren and semicolon"
+                  (save-excursion
+                    (end-of-line)
+                    (let
+                        ((endpoint
+                          (point)))
+                      (beginning-of-line)
+                      (if
+                          (re-search-forward "[ ]*);$" endpoint t)
+                          t nil))))
+           (defun my/prev-line-call-with-no-args-p nil "Return true if the previous line is a function call with no arguments"
+                  (save-excursion
+                    (let
+                        ((start
+                          (point)))
+                      (forward-line -1)
+                      (if
+                          (re-search-forward ".($" start t)
+                          t nil))))
+           (defun my/arglist-cont-nonempty-indentation
+               (arg)
+             (if
+                 (my/inside-java-lambda-p)
+                 '+
+               (if
+                   (my/is-string-concatenation-p)
+                   16
+                 (unless
+                     (my/point-in-defun-declaration-p)
+                   '++))))
+           (defun my/statement-block-intro
+               (arg)
+             (if
+                 (and
+                  (c-at-statement-start-p)
+                  (my/inside-java-lambda-p))
+                 0 '+))
+           (defun my/block-close
+               (arg)
+             (if
+                 (my/inside-java-lambda-p)
+                 '- 0))
+           (defun my/arglist-close
+               (arg)
+             (if
+                 (my/trailing-paren-p)
+                 0 '--))
+           (defun my/arglist-intro
+               (arg)
+             (if
+                 (my/prev-line-call-with-no-args-p)
+                 '++ 0))
+           (c-set-offset 'inline-open 0)
+           (c-set-offset 'topmost-intro-cont '+)
+           (c-set-offset 'statement-block-intro 'my/statement-block-intro)
+           (c-set-offset 'block-close 'my/block-close)
+           (c-set-offset 'knr-argdecl-intro '+)
+           (c-set-offset 'substatement-open '+)
+           (c-set-offset 'substatement-label '+)
+           (c-set-offset 'case-label '+)
+           (c-set-offset 'label '+)
+           (c-set-offset 'statement-case-open '+)
+           (c-set-offset 'statement-cont '++)
+           (c-set-offset 'arglist-intro 'my/arglist-intro)
+           (c-set-offset 'arglist-cont-nonempty
+                         '(my/arglist-cont-nonempty-indentation c-lineup-arglist))
+           (c-set-offset 'arglist-close 'my/arglist-close)
+           (c-set-offset 'inexpr-class 0)
+           (c-set-offset 'access-label 0)
+           (c-set-offset 'inher-intro '++)
+           (c-set-offset 'inher-cont '++)
+           (c-set-offset 'brace-list-intro '+)
+           (c-set-offset 'func-decl-cont '++))))
  '(sbt:default-command "Test/compile")
- '(sbt:program-name "/home/hvesalai/projects/trademarknow/tools/sbt.sh")
- '(sbt:program-options '("-MM"))
+ '(sbt:program-name "../tools/sbt.sh")
+ '(sbt:program-options '("-M"))
  '(sbt:scroll-to-bottom-on-output nil)
  '(scala-indent:align-parameters t)
  '(sp-autoinsert-pair nil)
@@ -118,27 +227,27 @@
 (put 'downcase-region 'disabled nil)
 
 (require 'package)
- ;: (add-to-list 'package-archives '("marmelade" . "http://marmalade-repo.org/") t)
-(add-to-list 'package-archives '("melpa" . "http://melpa.org/packages/") t)
+(add-to-list 'package-archives
+             '("melpa-stable" . "https://stable.melpa.org/packages/"))
 
 (package-initialize)
 (when (not package-archive-contents)
   (package-refresh-contents)
   (package-install 'use-package))
 (require 'use-package)
-(use-package scala-mode
-  :interpreter
-  ("scala" . scala-mode))
+;; (use-package scala-mode
+;;   :interpreter
+;;   ("scala" . scala-mode))
 (use-package sbt-mode
-  :commands sbt-start sbt-command
-  :config
-  ;; WORKAROUND: https://github.com/ensime/emacs-sbt-mode/issues/31
-  ;; allows using SPACE when in the minibuffer
-  (substitute-key-definition
-   'minibuffer-complete-word
-   'self-insert-command
-   minibuffer-local-completion-map))
-
+   :commands sbt-start sbt-command
+   :config
+   ;; WORKAROUND: https://github.com/ensime/emacs-sbt-mode/issues/31
+   ;; allows using SPACE when in the minibuffer
+   (substitute-key-definition
+    'minibuffer-complete-word
+    'self-insert-command
+    minibuffer-local-completion-map))
+   
 (setq my-templates
       '(implicit-execution-context "(implicit ec: ExecutionContext)" execution-context "ec: ExecutionContext" future-extensions "import com.onomatics.util.FutureSupport.FutureExtensions"))
 
@@ -165,3 +274,6 @@
                '("\\.tsv" . tabbed-mode))
   (modify-coding-system-alist 'file "\\.tsv" 'utf-8))
 (put 'upcase-region 'disabled nil)
+
+;; (add-to-list 'load-path "/home/hvesalai/projects/emacs-sbt-mode")
+;; (load-file "/home/hvesalai/projects/emacs-sbt-mode/sbt-mode.el")
